@@ -1,0 +1,21 @@
+name: Godot project validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.2.2
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Import resources and parse project
+        run: godot --headless --editor --path . --quit
+      - name: Start gameplay scene headlessly
+        run: godot --headless --audio-driver Dummy --path . --quit-after 5
