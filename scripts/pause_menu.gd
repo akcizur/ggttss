@@ -6,6 +6,7 @@ var status_label: Label
 var is_open: bool = false
 
 func _ready() -> void:
+	add_to_group("game_ui")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -25,10 +26,10 @@ func _build_menu() -> void:
 	overlay.add_child(shade)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(360, 300)
+	panel.custom_minimum_size = Vector2(380, 450)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.position = Vector2(-180, -150)
-	panel.size = Vector2(360, 300)
+	panel.position = Vector2(-190, -225)
+	panel.size = Vector2(380, 450)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.add_child(panel)
 
@@ -51,6 +52,21 @@ func _build_menu() -> void:
 	var resume_button := _make_button("POKRAČOVAT")
 	resume_button.pressed.connect(resume_game)
 	column.add_child(resume_button)
+
+	var save_button := _make_button("ULOŽIT HRU")
+	save_button.pressed.connect(func() -> void:
+		get_tree().call_group("game_world", "save_game")
+		status_label.text = "HRA ULOŽENA"
+	)
+	column.add_child(save_button)
+
+	var load_button := _make_button("NAČÍST HRU")
+	load_button.pressed.connect(func() -> void:
+		get_tree().call_group("game_world", "load_game")
+		status_label.text = "HRA NAČTENA"
+		resume_game()
+	)
+	column.add_child(load_button)
 
 	var restart_button := _make_button("RESTART POZICE")
 	restart_button.pressed.connect(restart_game)
@@ -88,15 +104,21 @@ func open_pause() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+func _restore_pointer_mode() -> void:
+	if OS.has_feature("mobile") or DisplayServer.is_touchscreen_available():
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
 func resume_game() -> void:
 	is_open = false
 	overlay.visible = false
 	get_tree().paused = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_restore_pointer_mode()
 
 func restart_game() -> void:
 	get_tree().paused = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_restore_pointer_mode()
 	get_tree().reload_current_scene()
 
 func quit_game() -> void:
