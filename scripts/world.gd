@@ -755,8 +755,9 @@ func _close_dialogue(completed: bool = false) -> void:
 				mission_label.text = "ÚKOL SPLNĚN  /  ODMĚNA: 150 $"
 				_show_message("Úkol dokončen! Získáváš 150 $.")
 			_refresh_inventory_ui()
-			save_game(false)
 	dialogue_completion_action = ""
+	# Persist NPC talk counters/mood even when the player closes dialogue early.
+	save_game(false)
 
 func _build_inventory_ui(root: Control) -> void:
 	var shade := ColorRect.new()
