@@ -259,6 +259,7 @@ func _refresh_interactable_target() -> void:
 
 func _add_npc(position: Vector3, npc_id: String = "resident") -> void:
 	var npc := Node3D.new()
+	npc.set_script(NPC_ACTOR_SCRIPT)
 	npc.name = "NPC_%s" % npc_id.capitalize()
 	npc.position = position
 	npc.set_meta("npc_id", npc_id)
@@ -600,12 +601,6 @@ func _use_door(area: Area3D) -> void:
 		door.call("set_open", false)
 
 func _interact_with_npc(area: Area3D) -> void:
-	if quest_completed:
-		_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Díky za pomoc. Balíček dorazil v pořádku!" ]))
-		return
-	if quest_started:
-		_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Balíček najdeš na chodníku u obchodu. Pak ho dones dovnitř k pultu."]))
-		return
 	var npc_id := str(area.get_meta("npc_id", "resident"))
 	var npc := area.get_meta("npc_node") as Node3D
 	if is_instance_valid(npc):
@@ -617,8 +612,8 @@ func _interact_with_npc(area: Area3D) -> void:
 	if npc_id == "shopkeeper":
 		if quest_stage == 2 and quest_package_carried:
 			_open_dialogue("PRODAVAČ", PackedStringArray([
-				"Tak to jsi ty. Balíček patří do našeho skladu.",
-				"Zkontroloval jsem ho. Tady máš potvrzení — dones ho zpátky člověku, který tě poslal."
+				"To je zásilka, na kterou čekáme.",
+				"Všechno sedí. Tady máš potvrzení o převzetí. Vrať ho člověku, který tě poslal."
 			]), "clerk_issue_receipt")
 		elif quest_stage >= 3:
 			_open_dialogue("PRODAVAČ", PackedStringArray(["Potvrzení už máš. Vrať se s ním za místním obyvatelem."]))
@@ -944,10 +939,11 @@ func load_game() -> void:
 			visuals.rotation.y = float(config.get_value("player", "visual_yaw", visuals.rotation.y))
 		player.set("camera_yaw", float(config.get_value("player", "camera_yaw", 0.0)))
 		player.call("_update_camera_rotation")
+	var package_available := quest_stage <= 1
 	if is_instance_valid(package_node):
-		package_node.visible = not quest_package_carried and not quest_completed
+		package_node.visible = package_available
 	if is_instance_valid(package_area):
-		package_area.monitoring = not quest_package_carried and not quest_completed
+		package_area.monitoring = package_available
 	match quest_stage:
 		0:
 			mission_label.text = "VOLNÁ HRA  /  PROMLOUV SI S MÍSTNÍM"
