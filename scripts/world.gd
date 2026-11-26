@@ -17,6 +17,8 @@ var money: int = 500
 var quest_started: bool = false
 var quest_package_carried: bool = false
 var quest_completed: bool = false
+var quest_stage: int = 0
+var npc_nodes: Dictionary = {}
 var package_node: Node3D
 var prompt_label: Label
 var mission_label: Label
@@ -255,21 +257,31 @@ func _refresh_interactable_target() -> void:
 	if is_instance_valid(prompt_label):
 		prompt_label.text = str(best.get_meta("prompt", "E  INTERAKCE")) if is_instance_valid(best) else ""
 
-func _add_npc(position: Vector3) -> void:
+func _add_npc(position: Vector3, npc_id: String = "resident") -> void:
 	var npc := Node3D.new()
-	npc.set_script(NPC_ACTOR_SCRIPT)
-	npc.name = "DistrictResident"
+	npc.name = "NPC_%s" % npc_id.capitalize()
 	npc.position = position
-	add_child(npc)
-	var jacket := _material(Color(0.16, 0.31, 0.43))
-	var trousers := _material(Color(0.10, 0.13, 0.17))
-	var skin := _material(Color(0.72, 0.52, 0.38))
-	_add_npc_capsule(npc, "Body", Vector3(0.0, 1.05, 0.0), 0.34, 0.95, jacket)
-	_add_npc_sphere(npc, "Head", Vector3(0.0, 1.82, 0.0), 0.23, skin)
-	_add_npc_capsule(npc, "LeftLeg", Vector3(-0.14, 0.43, 0.0), 0.12, 0.72, trousers)
-	_add_npc_capsule(npc, "RightLeg", Vector3(0.14, 0.43, 0.0), 0.12, 0.72, trousers)
-	_add_npc_capsule(npc, "LeftArm", Vector3(-0.42, 1.13, 0.0), 0.10, 0.62, jacket)
-	_add_npc_capsule(npc, "RightArm", Vector3(0.42, 1.13, 0.0), 0.10, 0.62, jacket)
+	npc.set_meta("npc_id", npc_id)
+	npc.set_meta("talk_count", 0)
+	npc.set_meta("mood", "neutral")
+	# Use the supplied rigged Mixamo character for citizens as well as the player.
+	# Each instance owns its own AnimationPlayer and can play idle/walking independently.
+	var rig_scene := load("res://assets/models/mixamo_base.glb") as PackedScene
+	if rig_scene != null:
+		var rig := rig_scene.instantiate() as Node3D
+		rig.name = "CitizenRig"
+		npc.add_child(rig)
+	else:
+		# Safe visible fallback if the model import is temporarily unavailable.
+		var jacket := _material(Color(0.16, 0.31, 0.43))
+		var trousers := _material(Color(0.10, 0.13, 0.17))
+		var skin := _material(Color(0.72, 0.52, 0.38))
+		_add_npc_capsule(npc, "Body", Vector3(0.0, 1.05, 0.0), 0.34, 0.95, jacket)
+		_add_npc_sphere(npc, "Head", Vector3(0.0, 1.82, 0.0), 0.23, skin)
+		_add_npc_capsule(npc, "LeftLeg", Vector3(-0.14, 0.43, 0.0), 0.12, 0.72, trousers)
+		_add_npc_capsule(npc, "RightLeg", Vector3(0.14, 0.43, 0.0), 0.12, 0.72, trousers)
+		_add_npc_capsule(npc, "LeftArm", Vector3(-0.42, 1.13, 0.0), 0.10, 0.62, jacket)
+		_add_npc_capsule(npc, "RightArm", Vector3(0.42, 1.13, 0.0), 0.10, 0.62, jacket)
 	var npc_body := StaticBody3D.new()
 	npc_body.name = "NpcCollision"
 	var npc_collision := CollisionShape3D.new()
@@ -280,13 +292,13 @@ func _add_npc(position: Vector3) -> void:
 	npc_collision.position = Vector3(0.0, 0.95, 0.0)
 	npc_body.add_child(npc_collision)
 	npc.add_child(npc_body)
-	var interaction := _add_interactable_area(position + Vector3(0.0, 1.0, 0.0), 2.25, "npc", "E  PROMLOUVIT SI", "")
-	interaction.set_meta("dialogue", PackedStringArray([
-		"Ahoj. V téhle čtvrti je poslední dobou docela rušno.",
-		"Pomůžeš mi? Ztratil se mi balíček. Najdeš ho na chodníku u obchodu a odneseš dovnitř k pultu?",
-		"Díky, že ses zastavil. Dej pozor na cestu."
-	]))
-	interaction.set_meta("dialogue_index", 0)
+	add_child(npc)
+	npc_nodes[npc_id] = npc
+	var display_name := "MÍSTNÍ OBYVATEL" if npc_id == "resident" else "PRODAVAČ"
+	var prompt := "E  PROMLOUVIT SI" if npc_id == "resident" else "E  OSLOVIT PRODAVAČE"
+	var interaction := _add_interactable_area(position + Vector3(0.0, 1.0, 0.0), 2.25, "npc", prompt, "")
+	interaction.set_meta("npc_id", npc_id)
+	interaction.set_meta("npc_name", display_name)
 	interaction.set_meta("npc_node", npc)
 	npc.add_to_group("npc")
 
@@ -335,6 +347,7 @@ func _build_shop_interior() -> void:
 	_add_box("ShopFrontWallRight", Vector3(47.0, 2.0, 41.0), Vector3(6.0, 4.0, 0.25), wall_material, true)
 	_add_box("ShopCounter", Vector3(42.0, 0.65, 25.5), Vector3(5.0, 1.3, 1.0), _material(Color(0.25, 0.18, 0.12)), true)
 	_add_interactable_area(Vector3(42.0, 1.0, 26.5), 2.0, "quest_deliver", "E  PŘEDAT BALÍČEK", "")
+	_add_npc(Vector3(46.0, 0.0, 31.5), "shopkeeper")
 	var interior_door := _create_swing_door("ShopInteriorDoor", Vector3(41.0, 0.0, 41.0), 2.0, 2.3, Color(0.14, 0.12, 0.10), 0.0)
 	var exit_area := _add_interactable_area(Vector3(42.0, 1.0, 39.5), 2.1, "door_exit", "E  OTEVŘÍT A ODEJÍT", "Opouštíš obchod.", Vector3(10.9, 0.08, 5.2))
 	exit_area.set_meta("door_node", interior_door)
@@ -593,13 +606,45 @@ func _interact_with_npc(area: Area3D) -> void:
 	if quest_started:
 		_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Balíček najdeš na chodníku u obchodu. Pak ho dones dovnitř k pultu."]))
 		return
-	var lines: PackedStringArray = area.get_meta("dialogue", PackedStringArray())
-	if lines.is_empty():
+	var npc_id := str(area.get_meta("npc_id", "resident"))
+	var npc := area.get_meta("npc_node") as Node3D
+	if is_instance_valid(npc):
+		talking_npc = npc
+		npc.set_meta("talk_count", int(npc.get_meta("talk_count", 0)) + 1)
+		npc.set_meta("mood", "talking")
+		if npc.has_method("set_talking"):
+			npc.call("set_talking", true)
+	if npc_id == "shopkeeper":
+		if quest_stage == 2 and quest_package_carried:
+			_open_dialogue("PRODAVAČ", PackedStringArray([
+				"Tak to jsi ty. Balíček patří do našeho skladu.",
+				"Zkontroloval jsem ho. Tady máš potvrzení — dones ho zpátky člověku, který tě poslal."
+			]), "clerk_issue_receipt")
+		elif quest_stage >= 3:
+			_open_dialogue("PRODAVAČ", PackedStringArray(["Potvrzení už máš. Vrať se s ním za místním obyvatelem."]))
+		else:
+			_open_dialogue("PRODAVAČ", PackedStringArray(["Dobrý den. Vítejte v obchodě."]))
 		return
-	talking_npc = area.get_meta("npc_node") as Node3D
-	if is_instance_valid(talking_npc) and talking_npc.has_method("set_talking"):
-		talking_npc.call("set_talking", true)
-	_open_dialogue("MÍSTNÍ OBYVATEL", lines, "start_delivery_quest")
+	match quest_stage:
+		0:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray([
+				"Ahoj. V téhle čtvrti je poslední dobou docela rušno.",
+				"Pomůžeš mi? Ztratil se mi balíček. Najdi ho na chodníku a dones ho do obchodu.",
+				"Prodavač ti dá potvrzení. Pak se vrať za mnou."
+			]), "start_delivery_quest")
+		1:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Balíček je na chodníku poblíž obchodu. Až ho najdeš, promluv si s prodavačem."]))
+		2:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Balíček už máš. V obchodě ho ukaž prodavači a vezmi si potvrzení."]))
+		3:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Prodavač ti vystavil potvrzení. Vrať se za mnou, prosím."]))
+		4:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray([
+				"Výborně, balíček i potvrzení dorazily. Moc jsi mi pomohl.",
+				"Tady je odměna za tvůj čas. Díky!"
+			]), "finish_delivery_quest")
+		_:
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Díky ještě jednou za pomoc. Měj se!"]))
 
 func _build_dialogue_ui(root: Control) -> void:
 	dialogue_overlay = ColorRect.new()
@@ -693,11 +738,27 @@ func _close_dialogue(completed: bool = false) -> void:
 		player.set_physics_process(true)
 		if not OS.has_feature("mobile") and not DisplayServer.is_touchscreen_available():
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if completed and dialogue_completion_action == "start_delivery_quest":
-		quest_started = true
-		mission_label.text = "ÚKOL  /  NAJDI BALÍČEK NA CHODNÍKU"
-		_show_message("Nový úkol: Doručení balíčku")
-		save_game(false)
+	if completed:
+		match dialogue_completion_action:
+			"start_delivery_quest":
+				quest_started = true
+				quest_stage = 1
+				mission_label.text = "ÚKOL 1/4  /  NAJDI BALÍČEK NA CHODNÍKU"
+				_show_message("Nový úkol: 1/4 — najdi balíček")
+			"clerk_issue_receipt":
+				quest_stage = 3
+				inventory_items["shop_receipt"] = 1
+				mission_label.text = "ÚKOL 3/4  /  PŘEDEJ POTVRZENÍ MÍSTNÍMU"
+				_show_message("Získal jsi potvrzení od prodavače.")
+			"finish_delivery_quest":
+				quest_stage = 5
+				quest_completed = true
+				inventory_items.erase("shop_receipt")
+				money += 150
+				mission_label.text = "ÚKOL SPLNĚN  /  ODMĚNA: 150 $"
+				_show_message("Úkol dokončen! Získáváš 150 $.")
+			_refresh_inventory_ui()
+			save_game(false)
 	dialogue_completion_action = ""
 
 func _build_inventory_ui(root: Control) -> void:
@@ -756,17 +817,27 @@ func _refresh_inventory_ui() -> void:
 	if not is_instance_valid(inventory_content):
 		return
 	var parcel_count := int(inventory_items.get("parcel", 0))
+	var receipt_count := int(inventory_items.get("shop_receipt", 0))
 	var key_count := int(inventory_items.get("shop_key", 0))
-	var lines := PackedStringArray(["Peněženka: $ %d" % money, "", "Předměty:"])
-	lines.append("  Balíček: %d" % parcel_count)
-	lines.append("  Klíč od obchodu: %d" % key_count)
-	if parcel_count == 0 and key_count == 0:
+	var lines := PackedStringArray([
+		"💵  PENĚŽENKA     $ %d" % money,
+		"",
+		"🎒  PŘEDMĚTY",
+		"📦  Balíček                 x %d" % parcel_count,
+		"🧾  Potvrzení obchodu      x %d" % receipt_count,
+		"🔑  Klíč od obchodu        x %d" % key_count
+	])
+	if parcel_count == 0 and receipt_count == 0 and key_count == 0:
+		lines.append("")
 		lines.append("Inventář je prázdný.")
 	inventory_content.text = "\n".join(lines)
 
 func _collect_package(area: Area3D) -> void:
-	if not quest_started:
+	if quest_stage < 1:
 		_show_message("Nejdřív si promluv s místním obyvatelem.")
+		return
+	if quest_stage != 1:
+		_show_message("Teď není čas sbírat další balíček.")
 		return
 	if quest_package_carried:
 		_show_message("Už jeden balíček neseš.")
@@ -774,6 +845,7 @@ func _collect_package(area: Area3D) -> void:
 	if not bool(area.get_meta("pickup_active", true)):
 		return
 	quest_package_carried = true
+	quest_stage = 2
 	inventory_items["parcel"] = 1
 	area.set_meta("pickup_active", false)
 	area.monitoring = false
@@ -781,9 +853,9 @@ func _collect_package(area: Area3D) -> void:
 		package_node.visible = false
 	nearby_interactables.erase(area)
 	_refresh_interactable_target()
-	mission_label.text = "ÚKOL  /  DORUČ BALÍČEK DO OBCHODU"
+	mission_label.text = "ÚKOL 2/4  /  UKAŽ BALÍČEK PRODAVAČI"
 	_refresh_inventory_ui()
-	_show_message("Balíček sebral. Dones ho do obchodu.")
+	_show_message("Balíček sebral. Zanes ho prodavači v obchodě.")
 	save_game(false)
 
 func _deliver_package() -> void:
@@ -791,13 +863,14 @@ func _deliver_package() -> void:
 		_show_message("Balíček už byl doručen.")
 	elif not quest_package_carried:
 		_show_message("Nemáš u sebe balíček.")
+	elif quest_stage != 3:
+		_show_message("Nejdřív ukaž balíček prodavači a vyzvedni potvrzení.")
 	else:
 		quest_package_carried = false
-		quest_completed = true
 		inventory_items.erase("parcel")
-		money += 100
-		mission_label.text = "ÚKOL SPLNĚN  /  ODMĚNA: 100 $"
-		_show_message("Balíček doručen. Úkol splněn! Získáváš 100 $.")
+		quest_stage = 4
+		mission_label.text = "ÚKOL 4/4  /  VRAŤ SE ZA MÍSTNÍM OBYVATELEM"
+		_show_message("Balíček předán. Vrať se za člověkem, který tě poslal.")
 		_refresh_inventory_ui()
 		save_game(false)
 
@@ -819,7 +892,15 @@ func save_game(show_feedback: bool = true) -> void:
 	config.set_value("progress", "quest_started", quest_started)
 	config.set_value("progress", "quest_package_carried", quest_package_carried)
 	config.set_value("progress", "quest_completed", quest_completed)
+	config.set_value("progress", "quest_stage", quest_stage)
 	config.set_value("inventory", "items", inventory_items)
+	for npc_id in npc_nodes.keys():
+		var npc := npc_nodes[npc_id] as Node3D
+		if is_instance_valid(npc):
+			config.set_value("npcs", str(npc_id) + "_position", npc.global_position)
+			config.set_value("npcs", str(npc_id) + "_rotation", npc.global_rotation.y)
+			config.set_value("npcs", str(npc_id) + "_talk_count", int(npc.get_meta("talk_count", 0)))
+			config.set_value("npcs", str(npc_id) + "_mood", str(npc.get_meta("mood", "neutral")))
 	var error := config.save(SAVE_PATH)
 	if show_feedback:
 		_show_message("Hra uložena." if error == OK else "Uložení se nezdařilo.")
@@ -836,6 +917,7 @@ func load_game() -> void:
 	quest_started = bool(config.get_value("progress", "quest_started", false))
 	quest_package_carried = bool(config.get_value("progress", "quest_package_carried", false))
 	quest_completed = bool(config.get_value("progress", "quest_completed", false))
+	quest_stage = int(config.get_value("progress", "quest_stage", 5 if quest_completed else (2 if quest_package_carried else (1 if quest_started else 0))))
 	var saved_items: Variant = config.get_value("inventory", "items", {})
 	if saved_items is Dictionary:
 		inventory_items = saved_items
@@ -843,6 +925,15 @@ func load_game() -> void:
 		inventory_items.clear()
 	if quest_package_carried and int(inventory_items.get("parcel", 0)) == 0:
 		inventory_items["parcel"] = 1
+	for npc_id in npc_nodes.keys():
+		var npc := npc_nodes[npc_id] as Node3D
+		if is_instance_valid(npc):
+			var saved_npc_position: Variant = config.get_value("npcs", str(npc_id) + "_position", npc.global_position)
+			if saved_npc_position is Vector3:
+				npc.global_position = saved_npc_position
+			npc.global_rotation.y = float(config.get_value("npcs", str(npc_id) + "_rotation", npc.global_rotation.y))
+			npc.set_meta("talk_count", int(config.get_value("npcs", str(npc_id) + "_talk_count", 0)))
+			npc.set_meta("mood", str(config.get_value("npcs", str(npc_id) + "_mood", "neutral")))
 	if is_instance_valid(player):
 		var saved_position: Variant = config.get_value("player", "position", player.global_position)
 		if saved_position is Vector3:
@@ -857,12 +948,19 @@ func load_game() -> void:
 		package_node.visible = not quest_package_carried and not quest_completed
 	if is_instance_valid(package_area):
 		package_area.monitoring = not quest_package_carried and not quest_completed
-	if quest_completed:
-		mission_label.text = "ÚKOL SPLNĚN  /  ODMĚNA: 100 $"
-	elif quest_package_carried:
-		mission_label.text = "ÚKOL  /  DORUČ BALÍČEK DO OBCHODU"
-	elif quest_started:
-		mission_label.text = "ÚKOL  /  NAJDI BALÍČEK NA CHODNÍKU"
+	match quest_stage:
+		0:
+			mission_label.text = "VOLNÁ HRA  /  PROMLOUV SI S MÍSTNÍM"
+		1:
+			mission_label.text = "ÚKOL 1/4  /  NAJDI BALÍČEK NA CHODNÍKU"
+		2:
+			mission_label.text = "ÚKOL 2/4  /  UKAŽ BALÍČEK PRODAVAČI"
+		3:
+			mission_label.text = "ÚKOL 3/4  /  PŘEDEJ BALÍČEK U PULTU"
+		4:
+			mission_label.text = "ÚKOL 4/4  /  VRAŤ SE ZA MÍSTNÍM"
+		_:
+			mission_label.text = "ÚKOL SPLNĚN  /  ODMĚNA: 150 $"
 	_refresh_inventory_ui()
 
 func _build_pause_menu() -> void:
