@@ -726,8 +726,10 @@ func _close_dialogue(completed: bool = false) -> void:
 		return
 	dialogue_open = false
 	dialogue_overlay.visible = false
-	if is_instance_valid(talking_npc) and talking_npc.has_method("set_talking"):
-		talking_npc.call("set_talking", false)
+	if is_instance_valid(talking_npc):
+		talking_npc.set_meta("mood", "neutral")
+		if talking_npc.has_method("set_talking"):
+			talking_npc.call("set_talking", false)
 	talking_npc = null
 	if is_instance_valid(player):
 		player.set_physics_process(true)
@@ -928,7 +930,10 @@ func load_game() -> void:
 				npc.global_position = saved_npc_position
 			npc.global_rotation.y = float(config.get_value("npcs", str(npc_id) + "_rotation", npc.global_rotation.y))
 			npc.set_meta("talk_count", int(config.get_value("npcs", str(npc_id) + "_talk_count", 0)))
-			npc.set_meta("mood", str(config.get_value("npcs", str(npc_id) + "_mood", "neutral")))
+			var saved_mood := str(config.get_value("npcs", str(npc_id) + "_mood", "neutral"))
+			npc.set_meta("mood", saved_mood)
+			if npc.has_method("set_mood"):
+				npc.call("set_mood", saved_mood)
 	if is_instance_valid(player):
 		var saved_position: Variant = config.get_value("player", "position", player.global_position)
 		if saved_position is Vector3:
