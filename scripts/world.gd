@@ -613,10 +613,10 @@ func _interact_with_npc(area: Area3D) -> void:
 		if quest_stage == 2 and quest_package_carried:
 			_open_dialogue("PRODAVAČ", PackedStringArray([
 				"To je zásilka, na kterou čekáme.",
-				"Všechno sedí. Tady máš potvrzení o převzetí. Vrať ho člověku, který tě poslal."
+				"Všechno sedí. Tady máš potvrzení. Teď polož balíček na pult a pak vrať potvrzení tomu, kdo tě poslal."
 			]), "clerk_issue_receipt")
 		elif quest_stage >= 3:
-			_open_dialogue("PRODAVAČ", PackedStringArray(["Potvrzení už máš. Vrať se s ním za místním obyvatelem."]))
+			_open_dialogue("PRODAVAČ", PackedStringArray(["Potvrzení už máš. Polož balíček na pult a potom se vrať za místním obyvatelem."]))
 		else:
 			_open_dialogue("PRODAVAČ", PackedStringArray(["Dobrý den. Vítejte v obchodě."]))
 		return
@@ -632,7 +632,7 @@ func _interact_with_npc(area: Area3D) -> void:
 		2:
 			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Balíček už máš. V obchodě ho ukaž prodavači a vezmi si potvrzení."]))
 		3:
-			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Prodavač ti vystavil potvrzení. Vrať se za mnou, prosím."]))
+			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray(["Potvrzení máš. Nejdřív ještě odevzdej balíček u pultu."]))
 		4:
 			_open_dialogue("MÍSTNÍ OBYVATEL", PackedStringArray([
 				"Výborně, balíček i potvrzení dorazily. Moc jsi mi pomohl.",
