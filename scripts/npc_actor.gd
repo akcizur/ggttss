@@ -24,6 +24,9 @@ func _ready() -> void:
 		_idle_clip = _find_clip("idle")
 		_talk_clip = _find_clip("talk")
 		if _idle_clip != &"":
+			var idle_animation := _animation_player.get_animation(_idle_clip)
+			if idle_animation != null:
+				idle_animation.loop_mode = Animation.LOOP_LINEAR
 			_play_clip(_idle_clip)
 
 func _process(delta: float) -> void:
@@ -37,7 +40,8 @@ func _find_clip(wanted: String) -> StringName:
 	if not is_instance_valid(_animation_player):
 		return &""
 	for clip in _animation_player.get_animation_list():
-		if String(clip).get_file().to_lower() == wanted.to_lower() or String(clip).to_lower().ends_with("/" + wanted.to_lower()):
+		var clip_name := String(clip).to_lower()
+		if clip_name.get_file() == wanted.to_lower() or clip_name.ends_with("/" + wanted.to_lower()) or clip_name.ends_with("|" + wanted.to_lower()):
 			return StringName(clip)
 	return &""
 
