@@ -43,7 +43,7 @@ Open `project.godot` in Godot and press F6/F5. The main scene is `scenes/game.ts
 - Compact procedural city street block with collision-enabled road, sidewalks, buildings and street furniture
 - Resident NPC and shopkeeper NPC are separate instances of the supplied rigged Mixamo GLB; both play its real skeletal `idle` clip
 - NPC talk state has a subtle procedural gesture layer; the included model asset has no dedicated talk animation clip
-- Four-step delivery quest: accept job from resident, collect parcel, show it to shopkeeper and receive a receipt, then return to resident and receive $150
+- Four-step delivery quest: accept the job, collect the parcel, show it to the shopkeeper and receive a receipt, hand the parcel over at the counter, then return the receipt to the resident for $150
 - Centered dialogue modal with next/close behavior; player movement pauses during dialogue
 - Hinged shop doors with visible animation and collision, followed by the prototype room transition
 - Inventory panel (`I`) with emoji item markers, parcel and shop receipt counts
