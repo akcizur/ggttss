@@ -745,7 +745,7 @@ func _close_dialogue(completed: bool = false) -> void:
 			"clerk_issue_receipt":
 				quest_stage = 3
 				inventory_items["shop_receipt"] = 1
-				mission_label.text = "ÚKOL 3/4  /  PŘEDEJ POTVRZENÍ MÍSTNÍMU"
+				mission_label.text = "ÚKOL 3/4  /  PŘEDEJ BALÍČEK U PULTU"
 				_show_message("Získal jsi potvrzení od prodavače.")
 			"finish_delivery_quest":
 				quest_stage = 5
