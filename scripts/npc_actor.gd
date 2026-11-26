@@ -1,30 +1,64 @@
 extends Node3D
 
-## Lightweight procedural idle/talk animation for the current NPC blockout.
-## This can be replaced by a rigged citizen scene without changing interaction code.
+## Citizen actor: plays the real Mixamo idle clip from the supplied character pack.
+## Small procedural upper-body/root motion is layered as a placeholder for a future
+## dedicated talking clip; it does not replace the skeletal idle animation.
 
-@export var idle_bob_height: float = 0.025
-@export var idle_sway: float = 0.035
+@export var idle_sway: float = 0.025
+@export var talking_sway: float = 0.065
+
 var talking: bool = false
+var mood: String = "neutral"
 var _phase: float = 0.0
-var _base_body_y: float = 1.05
+var _rig: Node3D
+var _animation_player: AnimationPlayer
+var _idle_clip: StringName = &""
+var _talk_clip: StringName = &""
+
+func _ready() -> void:
+	_rig = get_node_or_null("CitizenRig") as Node3D
+	if not is_instance_valid(_rig):
+		_rig = self
+	_animation_player = find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if is_instance_valid(_animation_player):
+		_idle_clip = _find_clip("idle")
+		_talk_clip = _find_clip("talk")
+		if _idle_clip != &"":
+			_play_clip(_idle_clip)
 
 func _process(delta: float) -> void:
-    _phase += delta
-    var body := get_node_or_null("Body") as MeshInstance3D
-    var head := get_node_or_null("Head") as MeshInstance3D
-    var left_arm := get_node_or_null("LeftArm") as MeshInstance3D
-    var right_arm := get_node_or_null("RightArm") as MeshInstance3D
-    if is_instance_valid(body):
-        body.position.y = _base_body_y + sin(_phase * 1.7) * idle_bob_height
-    if is_instance_valid(head):
-        head.rotation.y = sin(_phase * 0.55) * (0.10 if talking else idle_sway)
-        head.rotation.x = sin(_phase * 1.9) * (0.035 if talking else 0.012)
-    var arm_swing := sin(_phase * (5.0 if talking else 1.15)) * (0.11 if talking else 0.025)
-    if is_instance_valid(left_arm):
-        left_arm.rotation.z = -0.08 + arm_swing
-    if is_instance_valid(right_arm):
-        right_arm.rotation.z = 0.08 - arm_swing
+	_phase += delta
+	if is_instance_valid(_rig) and _rig != self:
+		var sway := talking_sway if talking else idle_sway
+		_rig.rotation.y = sin(_phase * (2.0 if talking else 0.65)) * sway
+		_rig.rotation.z = sin(_phase * 1.4) * (0.012 if talking else 0.004)
+
+func _find_clip(wanted: String) -> StringName:
+	if not is_instance_valid(_animation_player):
+		return &""
+	for clip in _animation_player.get_animation_list():
+		if String(clip).get_file().to_lower() == wanted.to_lower() or String(clip).to_lower().ends_with("/" + wanted.to_lower()):
+			return StringName(clip)
+	return &""
+
+func _play_clip(clip: StringName) -> void:
+	if not is_instance_valid(_animation_player) or clip == &"":
+		return
+	if _animation_player.current_animation != clip:
+		_animation_player.play(clip, 0.22)
+	_animation_player.speed_scale = 1.0
 
 func set_talking(value: bool) -> void:
-    talking = value
+	talking = value
+	mood = "talking" if value else "neutral"
+	# The supplied GLB has an idle clip but no dedicated lip-sync/talk clip.
+	# Keep the real skeletal idle running and layer a subtle talk gesture above it.
+	if is_instance_valid(_animation_player):
+		if _talk_clip != &"" and talking:
+			_play_clip(_talk_clip)
+		elif _idle_clip != &"":
+			_play_clip(_idle_clip)
+		_animation_player.speed_scale = 1.08 if talking else 1.0
+
+func set_mood(value: String) -> void:
+	mood = value
